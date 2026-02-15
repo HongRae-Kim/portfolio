@@ -22,22 +22,6 @@
 > - Repo (Before Migration, Java): [Unimate](https://github.com/prgrms-be-devcourse/NBE7-9-2-Team10)
 > - Repo (After Migration, Kotlin): [Unimate - Kotlin](https://github.com/prgrms-be-devcourse/NBE7-9-3-Team10)
 
-### 🧳 chuncheon-guide-chatbot - 춘천 여행 가이드 챗봇 
-> - **기간/인원**: 
-> - **담당**:
-> - **기여**
->   - 
-> - **성과**
->   - 
-> Repo: [chuncheon-guide-chatbot](https://github.com/HongRae-Kim/chuncheon-guide-chatbot)
-
-### hallym_2GiJang - APG 데이터 분석 및 AI 모델을 통한 솔루션 제공 서비스 
-> 개발 기간: <br>
-> 역할: <br>
-> 기술 스택: <br>
-> 성과: <br>
-> Repo: [hallym_2GiJang](https://github.com/ysJang0104/hallym_2GiJang)
-
 ---
 
 ## 🎓 Education
