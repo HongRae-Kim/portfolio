@@ -9,7 +9,10 @@
 >   - Redis `unread count` 캐시를 도입해 채팅방/메시지 목록 조회 병목을 완화하고 읽음 상태 정합성을 유지
 >   - 타임존 처리 누락 및 조회 쿼리 오류를 수정하고 테스트를 보강해 운영 리스크를 최소화
 > - **기술 스택**: Java, Spring Boot, MySQL, WebSocket(STOMP), Redis(unread cache), Docker, AWS(EC2, S3)
-> - Repo: [MatchMyDuo](https://github.com/prgrms-web-devcourse-final-project/WEB7_9_FinalScreening_BE)
+> - **Repo**: [MatchMyDuo](https://github.com/prgrms-web-devcourse-final-project/WEB7_9_FinalScreening_BE)
+> -  **Demo Video**: [시연 영상](https://www.youtube.com/watch?v=n2shYvIcOKE)
+
+[![MatchMyDuo Demo Video](https://img.youtube.com/vi/n2shYvIcOKE/0.jpg)](https://www.youtube.com/watch?v=n2shYvIcOKE)
 
 ### 🏡 UniMate - 대학생 생활 기반 룸메이트 매칭 서비스 
 > - **기간/인원**: 2025.10.10 ~ 2025.11.20 | 5명 (BE 5)
