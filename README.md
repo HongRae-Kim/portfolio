@@ -11,12 +11,19 @@
   - `auth_login`에서 refresh token 저장소를 DB upsert 방식에서 Redis로 전환해 불필요한 DB write 병목 제거
   - `party_add_members`를 개별 조회/저장에서 배치 조회 + `saveAll()` 구조로 변경해 mixed 부하 기준 `p95 54.50ms → 20.01ms` 개선
   - k6, Prometheus, Grafana 기반 부하테스트를 구성하고 개선 전/후를 동일 조건으로 재측정
-  - 프론트-백엔드 배포 환경에서 쿠키 도메인, SameSite, Proxy JWT 처리 문제를 해결해 실제 로그인/채팅 흐름 안정화
+  - 배포 환경에서 쿠키 도메인, SameSite, Proxy JWT 처리 문제를 해결해 실제 로그인/채팅 흐름을 안정화
 - **기술 스택**: Java, Spring Boot, MySQL, Redis, WebSocket(STOMP), Docker, AWS(EC2, S3), Vercel, k6, Prometheus, Grafana
 - **링크**
-  - Repo: [MatchMyDuo Backend](https://github.com/prgrms-web-devcourse-final-project/WEB7_9_FinalScreening_BE)
+  - Team Repo: [MatchMyDuo Team Backend](https://github.com/prgrms-web-devcourse-final-project/WEB7_9_FinalScreening_BE)
+  - Fork Repo: [My Fork](https://github.com/HongRae-Kim/WEB7_9_FinalScreening_BE)
+  - Load Test Report: [부하테스트 및 병목 개선 보고서](https://github.com/HongRae-Kim/WEB7_9_FinalScreening_BE/blob/main/load-test/README.md)
   - Live: [서비스 바로가기](https://www.matchmyduo.cloud)
   - Demo Video: [시연 영상](https://www.youtube.com/watch?v=n2shYvIcOKE)
+
+![MatchMyDuo Load Test Comparison](https://raw.githubusercontent.com/HongRae-Kim/WEB7_9_FinalScreening_BE/main/load-test/images/mixed-endpoint-p95-run6-vs-run8.svg)
+
+> k6 기반 부하테스트로 병목을 식별하고, `party_add_members p95`를 `54.50ms → 20.01ms`로 개선했습니다.<br>`auth_login`은 refresh token 저장소를 Redis로 전환해 불필요한 DB write 병목을 제거했습니다.
+
 
 ---
 
