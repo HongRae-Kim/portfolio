@@ -90,7 +90,7 @@ Terraform, Vercel
 ### 링크
 - [Team Repo](https://github.com/prgrms-web-devcourse-final-project/WEB7_9_FinalScreening_BE)
 - [My Fork](https://github.com/HongRae-Kim/WEB7_9_FinalScreening_BE)
-- [Load Test Report](https://github.com/HongRae-Kim/WEB7_9_FinalScreening_BE/tree/main/docs/load-test)
+- [Load Test Report](https://github.com/HongRae-Kim/WEB7_9_FinalScreening_BE/blob/main/load-test/README.md)
 - [Portfolio Repo](https://github.com/HongRae-Kim/portfolio)
 
 ### 회고
