@@ -20,12 +20,6 @@
 Riot 전적 정보, 1:1 채팅, 파티 초대를 결합해  
 사용자가 **신뢰 기반으로 듀오/파티를 찾을 수 있도록 만든 실시간 매칭 서비스**입니다.
 
-### 핵심 성과
-- `party_add_members` API 처리 구조 개선으로 **p95 54.50ms → 20.01ms** 단축
-- refresh token 저장 구조를 **MySQL → Redis**로 전환해 **stress 테스트 실패율 99% → 0%** 개선
-- **k6, Prometheus, Grafana** 기반 부하 테스트 및 모니터링 환경 구성
-- **WebSocket(STOMP)** 기반 채팅에 단계별 인증·인가 검증 적용
-
 ### 기간 / 인원
 - **2025.12.10 ~ 2026.01.07**
 - **백엔드 6명**
@@ -34,9 +28,19 @@ Riot 전적 정보, 1:1 채팅, 파티 초대를 결합해
 - WebSocket(STOMP) 기반 1:1 실시간 채팅 구현
 - STOMP CONNECT / SUBSCRIBE / SEND 단계별 인증·인가 처리
 - Redis 기반 unread count 캐시 적용
-- 로그인 및 파티 참여 API 부하 테스트 수행
+- 로그인 및 파티 초대 API 부하 테스트 수행
 - 병목 분석 및 성능 개선
 - 운영 환경 인증 이슈 해결
+
+### 핵심 성과
+- `auth_login`의 refresh token 저장 구조를 **MySQL → Redis**로 전환해 stress 테스트 실패율 **99% → 0%** 개선
+- `party_add_members`를 **배치 조회 + saveAll() 구조**로 바꿔 mixed 부하 기준 **p95 54.50ms → 20.01ms** 개선
+- 이후 부하 테스트 체계를 재구성하고 write-path를 추가 최적화해, **realistic_peak 3회 재측정 모두 p95 40ms 이하** 달성
+  - `38.86ms`
+  - `35.27ms`
+  - `29.75ms`
+- **k6, Prometheus, Grafana** 기반 부하 테스트 및 모니터링 환경 구성
+- **WebSocket(STOMP)** 기반 채팅에 단계별 인증·인가 검증 적용
 
 ### 기술적 문제 해결
 
@@ -45,10 +49,24 @@ Riot 전적 정보, 1:1 채팅, 파티 초대를 결합해
 - **해결**: MySQL upsert 방식에서 Redis 저장 방식으로 전환
 - **결과**: stress 테스트 실패율 **99% → 0%**
 
-#### 2. 파티 참여 API 성능 개선
-- **문제**: `party_add_members` API에서 개별 조회/저장으로 인한 응답 지연 발생
-- **해결**: 배치 조회 + `saveAll()` 구조로 변경
-- **결과**: p95 응답 시간 **54.50ms → 20.01ms**
+#### 2. 파티 초대 API 성능 개선 및 안정화
+- **문제**
+  - `party_add_members` API에서 개별 조회/저장으로 인해 응답 지연 발생
+  - 기존 부하 테스트는 성공 latency와 중복/경합 응답이 섞여 해석되거나, 성공 표본 수가 부족한 상태에서 p95를 읽는 문제가 있었음
+  - 파티 상태 계산이 `count query` 기반이라 write-path 지연 편차가 컸음
+- **해결**
+  - `findAllByPartyIdAndUserIdIn(...)`, `findAllById(...)`, `saveAll(...)` 기반의 배치 처리 구조로 변경
+  - k6 preset 기반 runner, discovery, write-bank seed/reset 구조를 직접 설계해 realistic 시나리오를 반복 가능하게 재구성
+  - `Party`가 `capacity`, `joinedMemberCount`를 직접 관리하도록 변경해 `countByPartyIdAndState()` 제거
+  - `Post` 상태 변경은 bulk update로 전환
+  - `addMembers()`에서 초대 대상 user 조회를 1회로 통합하고, 응답 DTO 생성 시 lazy association 접근 제거
+- **결과**
+  - 1차 개선: mixed 부하 기준 `p95 54.50ms → 20.01ms`
+  - 2차 안정화: realistic_peak 기준 성공 표본 `104건`을 확보한 상태에서 3회 재측정 모두 통과
+    - `p95 38.86ms`
+    - `p95 35.27ms`
+    - `p95 29.75ms`
+  - 최신 3회 테스트 모두 `http_req_failed = 0`
 
 #### 3. 실시간 채팅 인증·인가 강화
 - **문제**: WebSocket 환경에서 비인가 사용자의 채팅방 접근 가능성 존재
@@ -61,7 +79,7 @@ Riot 전적 정보, 1:1 채팅, 파티 초대를 결합해
 - **결과**: 채팅 목록 조회 성능 개선 및 읽음 상태 관리 효율 향상
 
 #### 5. 운영 환경 인증 이슈 해결
-- **문제**: 배포 환경에서 쿠키 / SameSite / Proxy 설정 차이로 인증 문제 발생
+- **문제**: 배포 환경에서 쿠키, SameSite, Proxy 설정 차이로 인증 문제 발생
 - **해결**: 프록시 및 쿠키 전달 흐름 점검, 인증 설정 수정
 - **결과**: 운영 환경 로그인 및 채팅 흐름 안정화
 
@@ -69,33 +87,66 @@ Riot 전적 정보, 1:1 채팅, 파티 초대를 결합해
 - **부하 테스트**: k6
 - **메트릭 수집**: Prometheus
 - **시각화**: Grafana
-- **검증 기준**: 평균 응답 시간보다 **p95, 실패율, 처리 안정성** 중심으로 확인
+- **검증 기준**: 평균 응답 시간보다 **p95, 실패율, 성공 표본 수, 처리 안정성** 중심으로 확인
+
+### 부하 테스트 시나리오 설명
+프로젝트에서는 단순히 높은 부하를 주는 테스트만 수행한 것이 아니라,  
+**실서비스 피크 상황 재현**, **장시간 안정성 검증**, **경합 상황 검증**처럼 목적이 다른 시나리오를 구분해 사용했습니다.
+
+- **realistic_peak**
+  - 실제 서비스에서 사용자가 몰리는 시간대의 혼합 트래픽을 재현한 시나리오입니다.
+  - 게시글 조회, 로그인, 채팅 조회, 파티 조회, 파티 초대 요청을 실제 사용 비율에 가깝게 섞고, 짧은 시간 동안 부하를 점진적으로 올렸다가 내리는 방식으로 구성했습니다.
+  - 이 시나리오는 시스템의 한계를 찾는 테스트라기보다, **실제 운영 환경에서의 피크 구간을 안정적으로 처리할 수 있는지 검증하는 목적**에 가깝습니다.
+
+- **realistic_soak**
+  - 일정 부하를 장시간 유지하면서 안정성을 검증하는 시나리오입니다.
+  - 순간 응답 속도보다도, 시간이 지나도 실패율이 증가하지 않는지, 연결·캐시·DB 자원이 안정적으로 유지되는지를 확인하는 데 초점을 뒀습니다.
+
+- **stress**
+  - 정상 운영 범위를 넘어서는 높은 부하를 가해 시스템의 병목과 한계 지점을 확인하는 테스트입니다.
+  - 어느 지점에서 응답 시간이 급격히 증가하거나 dropped iterations, 실패율이 발생하는지 확인해 병목 후보를 찾는 데 활용했습니다.
+
+- **write contention**
+  - 특정 write API에 동일 자원 경합을 유도해 정합성과 처리 지연을 확인하는 시나리오입니다.
+  - 이 프로젝트에서는 `party_add_members` 경로를 대상으로, 단순 성공 latency뿐 아니라 **동시성 환경에서의 안정성**도 함께 검증했습니다.
+
+### 결과 해석 기준
+부하 테스트 결과는 평균 응답 시간만 보지 않고,  
+**p95 응답 시간, 실패율, 성공 표본 수, dropped iterations**를 함께 확인했습니다.  
+특히 `party_add_members`처럼 성공/중복 응답이 섞일 수 있는 write API는  
+성공 요청 표본 수를 충분히 확보한 뒤에만 p95를 해석하도록 기준을 분리했습니다.
+
+### 성능 개선 결과
+![party_add_members p95 비교](https://github.com/HongRae-Kim/WEB7_9_FinalScreening_BE/raw/main/load-test/images/party-add-members-p95.svg)
+
+> `party_add_members` API를 배치 조회 + `saveAll()` 구조로 개선해 1차 병목을 줄였고,  
+> 이후 realistic 부하 테스트 체계 재구성과 write-path 최적화를 통해 최신 3회 재측정 모두 `p95 40ms 이하`를 달성했습니다.
+
+### 인증 병목 분석
+![auth_login 단계별 비용 요약](https://github.com/HongRae-Kim/WEB7_9_FinalScreening_BE/raw/main/load-test/images/auth-login-stage-summary.svg)
+
+> refresh token 저장 구조를 Redis로 전환해 DB write 병목을 제거했고, 이후 남은 주요 비용이 BCrypt 검증 구간임을 확인했습니다.
 
 ### 기술 스택
 **Main Stack**  
 Java, Spring Boot, Spring Security, JWT, JPA/Hibernate, MySQL, Redis, WebSocket/STOMP
 
 **Applied Tools**  
-Docker, AWS EC2/S3, Nginx, k6, Prometheus, Grafana
+Docker, AWS EC2/S3, k6, Prometheus, Grafana
 
 **Exposure**  
 Terraform, Vercel
-
-#### 성능 개선 결과
-![party_add_members p95 비교](https://github.com/HongRae-Kim/WEB7_9_FinalScreening_BE/raw/main/load-test/images/party-add-members-p95.svg)
-
-> 혼합 부하 테스트에서 병목으로 확인된 `party_add_members` API를  
-> 배치 조회 + `saveAll()` 구조로 개선해 p95 응답 시간을 **54.50ms → 20.01ms**로 단축했습니다.
 
 ### 링크
 - [Team Repo](https://github.com/prgrms-web-devcourse-final-project/WEB7_9_FinalScreening_BE)
 - [My Fork](https://github.com/HongRae-Kim/WEB7_9_FinalScreening_BE)
 - [Load Test Report](https://github.com/HongRae-Kim/WEB7_9_FinalScreening_BE/blob/main/load-test/README.md)
+- [Live Service](https://www.matchmyduo.cloud/)
+- [API Docs](https://api.matchmyduo.cloud/swagger-ui/index.html)
 
 ### 회고
-이 프로젝트를 통해  
-**부하 테스트로 병목을 확인하고, 원인을 분석한 뒤, 구조를 개선하고, 동일 조건에서 다시 검증하는 과정**이  
-백엔드 개발에서 중요하다는 점을 배웠습니다.
+이 프로젝트를 통해 **부하 테스트로 병목을 확인하고, 원인을 분석한 뒤, 구조를 개선하고, 동일 조건에서 다시 검증하는 과정**이 백엔드 개발에서 중요하다는 점을 배웠습니다.  
+특히 threshold를 완화하는 대신 **seed 데이터, 성공 표본 수, 트랜잭션 내 불필요한 조회를 순차적으로 제거해 성능 기준 자체를 신뢰할 수 있게 만든 경험**이 가장 의미 있었습니다.
 
 ---
 
@@ -151,8 +202,7 @@ Java
 - [UniMate Kotlin Repo](https://github.com/HongRae-Kim/NBE7-9-2-Team10)
 
 ### 회고
-이 프로젝트를 통해  
-기능 구현만큼 중요한 것은 **상태를 어떻게 정의하고, 예외 상황에서도 일관성을 유지하도록 설계하는가**라는 점을 배웠습니다.
+이 프로젝트를 통해 기능 구현만큼 중요한 것은 **상태를 어떻게 정의하고, 예외 상황에서도 일관성을 유지하도록 설계하는가**라는 점을 배웠습니다.
 
 ---
 
