@@ -19,21 +19,18 @@
   - 로그인 / 파티 초대 API 부하 테스트 및 병목 개선
 
 - **핵심 성과**
-  - `auth_login` refresh token 저장 구조를 **MySQL → Redis**로 전환해 stress 테스트 실패율 **99% → 0%** 개선
-  - `party_add_members`를 **배치 조회 + saveAll() 구조**로 개선해 mixed 부하 기준 **p95 54.50ms → 20.01ms** 개선
+  - `auth_login` refresh token 저장 구조를 **MySQL → Redis**로 전환해 write latency를 **2~5ms → 0.003~0.016ms** 수준으로 줄임
+  - `party_add_members`를 **배치 조회 + saveAll() 구조**로 개선해 legacy mixed 기준 **p95 54.50ms → 24.44ms**로 개선
   - 이후 realistic_peak 기준 **최신 3회 재측정 모두 p95 40ms 이하** 달성
-    - `38.86ms`
-    - `35.27ms`
-    - `29.75ms`
+    - `35.76ms`
+    - `36.64ms`
+    - `29.95ms`
+  - 최신 3회 재측정에서 `party_add_members`는 성공 표본 `104건`, 실패율 `0%`를 유지
 
 - **기술적으로 한 일**
   - k6, Prometheus, Grafana 기반 부하 테스트 및 모니터링 환경 구성
   - realistic 시나리오와 write-bank seed/reset 구조를 직접 설계
-  - `Party`가 `capacity`, `joinedMemberCount`를 직접 관리하도록 변경해 count query 기반 상태 계산 제거
-  - `addMembers()`에서 user 조회를 1회로 통합하고 응답 DTO 생성 시 lazy association 접근 제거
-
-- **성능 개선 결과**
-![party_add_members p95 비교](https://github.com/HongRae-Kim/WEB7_9_FinalScreening_BE/raw/main/load-test/images/party-add-members-p95.svg)
+  - `Party`가 `capacity`, `joinedMemberCount`를 직접 관리하도록 바꿔 count query 기반 상태 계산을 제거하고, 초대 write-path의 조회 흐름을 단순화
 
 - **기술 스택**
   - Java, Spring Boot, Spring Security, JWT, JPA/Hibernate, MySQL, Redis, WebSocket/STOMP
